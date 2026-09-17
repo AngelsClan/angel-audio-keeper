@@ -1,0 +1,2 @@
+# Preserve source bytes across platforms for reproducible installation packages.
+* -text

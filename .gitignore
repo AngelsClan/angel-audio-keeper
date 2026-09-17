@@ -1,0 +1,16 @@
+# Only public project files belong in this repository.
+/*
+!/.gitignore
+!/.gitattributes
+!/README.md
+!/LICENSE
+!/TEST-REPORT.md
+!/RELEASE-CHECKLIST.md
+!/RELEASE-NOTES.md
+!/build.py
+!/addon/
+!/tests/
+!/tools/
+__pycache__/
+*.pyc
+*.tmp
