@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 from test_audio import pkg
-from aak.storage import SettingsStore, validated
+from aak.storage import SettingsStore, validated, MODE_DEFAULT, MODE_DEVICE, MODE_DEVICES
 
 
 class StorageTests(unittest.TestCase):
@@ -30,9 +30,29 @@ class StorageTests(unittest.TestCase):
 
     def test_invalid_values(self):
         for data in ({"volume": True}, {"volume": 101}, {"enabled": "yes"},
-                     {"device": 1}, []):
+                     {"device": 1}, {"mode": "unknown"},
+                     {"devices": ["one"] * 17}, {"devices": "one"}, []):
             with self.assertRaises(ValueError):
                 validated(data)
+
+    def test_existing_single_output_keeps_its_choice(self):
+        old = dict(enabled=True, device="saved-endpoint", volume=7,
+                   keepSystem=False, keepDisplay=False, awakeOnBattery=False, debug=False)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "settings.json"
+            path.write_text(json.dumps(old), encoding="utf-8")
+            store = SettingsStore(path)
+            self.assertEqual(store.data["mode"], MODE_DEVICE)
+            self.assertEqual(store.data["device"], "saved-endpoint")
+            self.assertEqual(json.loads(path.read_text(encoding="utf-8")), old)
+        self.assertEqual(validated(dict(old, device=""))["mode"], MODE_DEFAULT)
+
+    def test_multiple_output_ids_are_unique_and_persist(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "settings.json"
+            store = SettingsStore(path)
+            store.save(dict(store.data, mode=MODE_DEVICES, devices=["one", "two", "one"]))
+            self.assertEqual(SettingsStore(path).data["devices"], ["one", "two"])
 
     def test_failed_replace_keeps_original(self):
         with tempfile.TemporaryDirectory() as directory:

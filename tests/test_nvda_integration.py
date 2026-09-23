@@ -107,7 +107,7 @@ class IntegrationTests(unittest.TestCase):
         self.plugin = self.plugin_module.GlobalPlugin()
         self.assertEqual(len(self.categories), 1)
         self.assertFalse(self.fake.update.call_args.args[0].enabled)
-        self.assertEqual(len(self.profile.handlers), 0)
+        self.assertEqual(len(self.profile.handlers), 1)
         self.plugin.terminate()
         self.plugin = None
         self.assertEqual(self.categories, [])
@@ -118,8 +118,8 @@ class IntegrationTests(unittest.TestCase):
         self.plugin = self.plugin_module.GlobalPlugin()
         self.plugin.saveSettings(dict(self.plugin.store.data, volume=17, enabled=True))
         self.assertEqual(self.fake.update.call_args.args[0].volume, 17)
-        self.assertEqual(self.profile.handlers, [])
-        self.assertEqual(self.reset.handlers, [])
+        self.assertEqual(len(self.profile.handlers), 1)
+        self.assertEqual(len(self.reset.handlers), 1)
         self.assertEqual(self.conf.saved, 0)
         self.plugin.disable()
         self.assertFalse(self.plugin.store.data["enabled"])
@@ -149,8 +149,12 @@ class IntegrationTests(unittest.TestCase):
             control.GetValue.return_value = value
             setattr(panel, name, control)
         panel.output = MagicMock()
-        panel.output.GetSelection.return_value = 1
-        panel.device_ids = ["", "endpoint-test"]
+        panel.output.GetSelection.return_value = 0
+        panel.mode = MagicMock()
+        panel.mode.GetSelection.return_value = 2
+        panel.outputs = MagicMock()
+        panel.outputs.GetCheckedItems.return_value = []
+        panel.device_ids = ["endpoint-test"]
         panel.onSave()
         self.assertEqual(self.conf.saved, 0)
         self.assertTrue(self.plugin.store.path.exists())
@@ -159,6 +163,16 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(settings.volume, 12)
         self.assertTrue(settings.keep_display)
         self.assertTrue(settings.debug)
+
+    def test_follow_nvda_updates_when_profile_changes(self):
+        self.conf["audio"] = {"outputDevice": "first"}
+        self.plugin = self.plugin_module.GlobalPlugin()
+        self.plugin.saveSettings(dict(self.plugin.store.data, mode="nvda", enabled=True))
+        self.assertEqual(self.fake.update.call_args.args[0].nvda_device, "first")
+        self.conf["audio"]["outputDevice"] = "second"
+        self.profile.handlers[0]()
+        self.assertEqual(self.fake.update.call_args.args[0].nvda_device, "second")
+        self.assertEqual(self.plugin.store.data["mode"], "nvda")
 
     def test_stop_works_even_if_save_fails(self):
         self.plugin = self.plugin_module.GlobalPlugin()

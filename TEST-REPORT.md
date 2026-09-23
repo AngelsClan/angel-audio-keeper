@@ -96,3 +96,21 @@ Packaged files are compared byte-for-byte with current source before handoff.
 Old test-package artifacts are removed only after the replacement passes checks.
 Historical development records and machine-specific logs are kept outside the
 public-facing documentation and are not part of the .nvda-addon package.
+
+## September 23 source update, still version 0.1.0
+
+The source now supports Follow NVDA output, Follow Windows default, one or
+several selected outputs, and all active outputs (up to 16). Existing saved
+single-output choices migrate without rewriting the settings file. One worker
+keeps separate streams and retries for each endpoint. Profile changes update
+the NVDA-follow target without changing Audio Keeper's global preferences.
+
+Sixty unit and integration tests passed, including migration, per-device
+failure isolation, hotplug, default and NVDA output changes, a bounded stop,
+and multi-output gain. The hidden real-wx panel check passed two checked
+outputs, Apply and Stop. A silent native Windows run opened all nine active
+render endpoints on the test machine, then two selected outputs and one
+NVDA-follow output, with no reported stream errors. The exact packaged add-on
+loaded disabled with all five modes in a separate NVDA desktop. It was not
+installed in the owner's live NVDA. The existing GitHub release asset predates
+this source update; no new release or version change was made.

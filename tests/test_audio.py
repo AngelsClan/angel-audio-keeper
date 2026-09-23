@@ -17,7 +17,9 @@ pkg = types.ModuleType("aak")
 pkg.__path__ = [str(PACKAGE)]
 sys.modules["aak"] = pkg
 from aak.noise import AudioFormat, Noise
-from aak.engine import Engine, Settings, make_logger, summary, RotatingLogHandler
+from aak.engine import (Engine, Settings, MAX_STREAMS, make_logger, summary,
+                        RotatingLogHandler)
+from aak.storage import MODE_ALL, MODE_DEFAULT, MODE_DEVICE, MODE_DEVICES, MODE_NVDA
 
 
 def wait_until(predicate, timeout=3):
@@ -149,16 +151,25 @@ class FakeBackend:
     def __init__(self):
         self.opens = self.closes = self.writes = 0
         self.failures = 0
+        self.device_failures = {}
+        self.broken = set()
+        self.entries = [("one", "Output one"), ("two", "Output two")]
         self.default = "one"
+        self.scan_error = False
         self.battery = False
         self.power = []
         self.volumes = []
+        self.opened = []
+        self.writes_by = {}
+        self.streams = {}
         self.worker_threads = set()
         owner = self
 
         class System:
             def devices(self):
-                return [("one", "Output one"), ("two", "Output two")]
+                if owner.scan_error:
+                    raise OSError("simulated property store failure")
+                return list(owner.entries)
 
             def default_id(self):
                 return owner.default
@@ -170,20 +181,31 @@ class FakeBackend:
             def __init__(self, system, device=""):
                 owner.opens += 1
                 owner.worker_threads.add(threading.get_ident())
+                target = device or owner.default
+                owner.opened.append(target)
                 if owner.failures:
                     owner.failures -= 1
                     raise OSError("simulated endpoint invalidated")
-                self.device_id = device or owner.default
-                self.name = self.device_id
+                if owner.device_failures.get(target):
+                    owner.device_failures[target] -= 1
+                    raise OSError(f"{target} is unavailable")
+                if target not in [identifier for identifier, name in owner.entries]:
+                    raise OSError(f"{target} is not connected")
+                self.device_id = target
+                self.name = dict(owner.entries)[target]
                 self.format = AudioFormat(8000, 2, 32, True)
                 self.capacity = 1600
                 self.started = False
+                owner.streams[target] = self
 
             def available(self):
+                if self.device_id in owner.broken:
+                    raise OSError("endpoint invalidated during playback")
                 return 160
 
             def write(self, data):
                 owner.writes += 1
+                owner.writes_by[self.device_id] = owner.writes_by.get(self.device_id, 0) + 1
                 assert len(data) % 8 == 0
 
             def start(self):
@@ -198,6 +220,12 @@ class FakeBackend:
 
         self.AudioSystem = System
         self.RenderStream = Stream
+
+    def add_device(self, identifier, name):
+        self.entries.append((identifier, name))
+
+    def remove_device(self, identifier):
+        self.entries = [entry for entry in self.entries if entry[0] != identifier]
 
     def set_awake(self, system=False, display=False):
         self.power.append((system, display, threading.get_ident()))
@@ -310,15 +338,182 @@ class EngineTests(unittest.TestCase):
         self.engine.update(Settings(enabled=True))
         self.assertTrue(wait_until(lambda: self.backend.writes > 2))
         self.backend.default = "two"
-        self.assertTrue(wait_until(lambda: self.engine.snapshot()["device"] == "two", 4))
+        self.assertTrue(wait_until(lambda: self.engine.snapshot()["device"] == "Output two", 4))
         self.assertEqual(self.backend.opens, 2)
 
     def test_pinned_device_does_not_follow_default(self):
-        self.engine.update(Settings(enabled=True, device="one"))
+        self.engine.update(Settings(enabled=True, mode=MODE_DEVICE, device="one"))
         self.assertTrue(wait_until(lambda: self.backend.writes > 2))
         self.backend.default = "two"
         time.sleep(2.1)
         self.assertEqual(self.backend.opens, 1)
+        self.assertEqual(self.engine.snapshot()["device"], "Output one")
+
+    def test_missing_selected_device_never_falls_back(self):
+        self.engine.update(Settings(enabled=True, mode=MODE_DEVICE, device="ghost"))
+        self.assertTrue(wait_until(lambda: self.engine.snapshot()["lastError"]))
+        self.assertEqual(self.backend.writes, 0)
+        self.assertEqual(set(self.backend.opened), {"ghost"})
+        self.assertEqual(self.engine.snapshot()["state"], "Waiting to recover")
+
+    def test_all_outputs_stream_independently(self):
+        self.engine.update(Settings(enabled=True, mode=MODE_ALL))
+        self.assertTrue(wait_until(lambda: self.engine.snapshot()["activeOutputs"] == 2))
+        self.assertTrue(wait_until(lambda: min(self.backend.writes_by.get(key, 0)
+                                               for key in ("one", "two")) > 2))
+        status = self.engine.snapshot()
+        self.assertEqual(status["state"], "Playing")
+        self.assertEqual(status["selectedOutputs"], 2)
+        self.assertEqual(status["device"], "Output one; Output two")
+        self.assertEqual(len(status["streams"]), 2)
+
+    def test_all_outputs_follow_hotplug_both_ways(self):
+        self.engine.update(Settings(enabled=True, mode=MODE_ALL))
+        self.assertTrue(wait_until(lambda: self.engine.snapshot()["activeOutputs"] == 2))
+        self.backend.add_device("three", "Output three")
+        self.engine.request_scan()
+        self.assertTrue(wait_until(lambda: self.engine.snapshot()["activeOutputs"] == 3))
+        self.assertTrue(wait_until(lambda: self.backend.writes_by.get("three", 0) > 1))
+        before = self.backend.writes_by["one"]
+        self.backend.remove_device("three")
+        self.engine.request_scan()
+        self.assertTrue(wait_until(lambda: self.engine.snapshot()["activeOutputs"] == 2))
+        self.assertEqual(self.backend.closes, 1)
+        # Removing one endpoint must not interrupt the others.
+        self.assertGreater(self.backend.writes_by["one"], before)
+
+    def test_all_outputs_are_bounded(self):
+        for index in range(MAX_STREAMS + 4):
+            self.backend.add_device(f"extra{index}", f"Extra output {index}")
+        self.engine.update(Settings(enabled=True, mode=MODE_ALL))
+        self.assertTrue(wait_until(lambda: self.engine.snapshot()["activeOutputs"] == MAX_STREAMS))
+        time.sleep(0.3)
+        status = self.engine.snapshot()
+        self.assertEqual(status["selectedOutputs"], MAX_STREAMS)
+        self.assertEqual(len(status["streams"]), MAX_STREAMS)
+        self.assertIn("first", status["outputNote"])
+        self.assertEqual(self.backend.opens, MAX_STREAMS)
+
+    def test_one_failing_output_does_not_stop_the_others(self):
+        self.engine.update(Settings(enabled=True, mode=MODE_DEVICES, devices=("one", "two")))
+        self.assertTrue(wait_until(lambda: self.engine.snapshot()["activeOutputs"] == 2))
+        healthy = self.backend.streams["one"]
+        before = self.backend.writes_by["one"]
+        self.backend.broken.add("two")
+        self.assertTrue(wait_until(lambda: self.engine.snapshot()["activeOutputs"] == 1))
+        status = self.engine.snapshot()
+        self.assertEqual(status["state"], "Playing on 1 of 2 outputs")
+        self.assertIn("invalidated", status["lastError"])
+        self.assertGreater(self.backend.writes_by["one"], before)
+        self.assertIs(self.backend.streams["one"], healthy)
+        self.assertTrue(healthy.started)
+        # The broken output retries on its own, and recovers without reopening ours.
+        self.backend.broken.clear()
+        self.assertTrue(wait_until(lambda: self.engine.snapshot()["activeOutputs"] == 2, 4))
+        self.assertIs(self.backend.streams["one"], healthy)
+        self.assertEqual(self.engine.snapshot()["recoveries"], 1)
+
+    def test_selected_output_reconnects_after_hotplug(self):
+        self.backend.remove_device("two")
+        self.engine.update(Settings(enabled=True, mode=MODE_DEVICES, devices=("one", "two")))
+        self.assertTrue(wait_until(lambda: self.engine.snapshot()["activeOutputs"] == 1))
+        self.assertIn("not connected", self.engine.snapshot()["lastError"])
+        self.assertIn("not connected", self.engine.snapshot()["outputNote"])
+        self.backend.add_device("two", "Output two")
+        self.assertTrue(wait_until(lambda: self.engine.snapshot()["activeOutputs"] == 2, 6))
+        self.assertTrue(wait_until(lambda: self.backend.writes_by.get("two", 0) > 1))
+
+    def test_mode_change_closes_outputs_that_are_no_longer_selected(self):
+        self.engine.update(Settings(enabled=True, mode=MODE_ALL))
+        self.assertTrue(wait_until(lambda: self.engine.snapshot()["activeOutputs"] == 2))
+        self.engine.update(Settings(enabled=True, mode=MODE_DEVICE, device="two"))
+        self.assertTrue(wait_until(lambda: self.engine.snapshot()["activeOutputs"] == 1))
+        self.assertTrue(wait_until(lambda: self.backend.closes == 1))
+        time.sleep(0.2)
+        self.assertEqual(self.engine.snapshot()["device"], "Output two")
+        self.assertEqual(self.backend.closes, 1)
+
+    def test_volume_change_reaches_every_output_without_reopening(self):
+        self.engine.update(Settings(enabled=True, mode=MODE_ALL))
+        self.assertTrue(wait_until(lambda: self.engine.snapshot()["activeOutputs"] == 2))
+        self.engine.update(Settings(enabled=True, mode=MODE_ALL, volume=22))
+        self.assertTrue(wait_until(lambda: self.backend.volumes.count(22) == 2))
+        self.assertEqual(self.backend.opens, 2)
+        self.assertEqual(self.backend.closes, 0)
+
+    def test_follow_nvda_uses_the_configured_endpoint(self):
+        self.engine.update(Settings(enabled=True, mode=MODE_NVDA, nvda_device="two"))
+        self.assertTrue(wait_until(lambda: self.engine.snapshot()["device"] == "Output two"))
+        self.assertEqual(self.backend.opened, ["two"])
+
+    def test_follow_nvda_profile_change_moves_the_stream(self):
+        self.engine.update(Settings(enabled=True, mode=MODE_NVDA, nvda_device="two"))
+        self.assertTrue(wait_until(lambda: self.engine.snapshot()["device"] == "Output two"))
+        # An NVDA profile switch supplies a different configured output.
+        self.engine.update(Settings(enabled=True, mode=MODE_NVDA, nvda_device="one"))
+        self.assertTrue(wait_until(lambda: self.engine.snapshot()["device"] == "Output one"))
+        self.assertEqual(self.backend.closes, 1)
+        self.assertEqual(self.backend.opened, ["two", "one"])
+
+    def test_follow_nvda_default_string_follows_windows_default(self):
+        for value in ("default", "", "  Default  "):
+            with self.subTest(value=value):
+                self.backend.default = "two"
+                self.engine.update(Settings(enabled=True, mode=MODE_NVDA, nvda_device=value))
+                self.assertTrue(wait_until(lambda: self.engine.snapshot()["device"] == "Output two", 4))
+                self.backend.default = "one"
+                self.assertTrue(wait_until(lambda: self.engine.snapshot()["device"] == "Output one", 4))
+
+    def test_follow_nvda_matches_an_older_friendly_name(self):
+        self.engine.update(Settings(enabled=True, mode=MODE_NVDA, nvda_device="Output two"))
+        self.assertTrue(wait_until(lambda: self.engine.snapshot()["device"] == "Output two"))
+        self.assertEqual(self.backend.opened, ["two"])
+        self.assertIn("name", self.engine.snapshot()["outputNote"])
+
+    def test_follow_nvda_unknown_output_falls_back_like_nvda(self):
+        self.engine.update(Settings(enabled=True, mode=MODE_NVDA, nvda_device="removed-headset"))
+        self.assertTrue(wait_until(lambda: self.engine.snapshot()["device"] == "Output one"))
+        self.assertIn("unavailable", self.engine.snapshot()["outputNote"])
+        # The fake backend records the resolved default endpoint, not the
+        # empty string passed to RenderStream.
+        self.assertEqual(self.backend.opened, ["one"])
+
+    def test_no_selected_outputs_reports_without_opening_anything(self):
+        self.engine.update(Settings(enabled=True, mode=MODE_DEVICES, devices=()))
+        self.assertTrue(wait_until(lambda: self.engine.snapshot()["state"] == "No output selected"))
+        self.assertEqual(self.backend.opens, 0)
+        self.assertIn("at least one", self.engine.snapshot()["outputNote"])
+
+    def test_device_list_failure_does_not_stop_playback(self):
+        self.engine.update(Settings(enabled=True, mode=MODE_ALL))
+        self.assertTrue(wait_until(lambda: self.engine.snapshot()["activeOutputs"] == 2))
+        before = self.backend.writes
+        self.backend.scan_error = True
+        self.engine.request_scan()
+        self.assertTrue(wait_until(lambda: self.engine.snapshot()["scanError"]))
+        self.assertTrue(wait_until(lambda: self.backend.writes > before + 4))
+        self.assertEqual(self.engine.snapshot()["activeOutputs"], 2)
+        self.assertEqual(self.backend.closes, 0)
+
+    def test_summary_lists_every_output_without_raw_device_ids(self):
+        self.engine.update(Settings(enabled=True, mode=MODE_ALL))
+        self.assertTrue(wait_until(lambda: self.engine.snapshot()["activeOutputs"] == 2))
+        text = summary(self.engine.snapshot())
+        self.assertIn("outputs:", text)
+        self.assertIn("Output one: Playing", text)
+        self.assertIn("Output two: Playing", text)
+        self.assertNotIn("devices:", text)
+
+    def test_stop_with_every_output_open_stays_bounded(self):
+        for index in range(MAX_STREAMS):
+            self.backend.add_device(f"extra{index}", f"Extra output {index}")
+        self.engine.update(Settings(enabled=True, mode=MODE_ALL))
+        self.assertTrue(wait_until(lambda: self.engine.snapshot()["activeOutputs"] == MAX_STREAMS))
+        start = time.monotonic()
+        self.assertTrue(self.engine.stop())
+        self.assertLess(time.monotonic() - start, 1)
+        self.assertEqual(self.backend.closes, MAX_STREAMS)
+        self.assertEqual(self.backend.power[-1][:2], (False, False))
 
     def test_rotating_logs_are_bounded(self):
         with tempfile.TemporaryDirectory() as directory:

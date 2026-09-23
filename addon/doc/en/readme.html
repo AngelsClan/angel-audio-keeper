@@ -21,7 +21,8 @@ Windows 11 and Realtek stereo. NVDA 2026.1 and physical HDMI surround require
 additional device testing. English is the initial interface language.</p>
 <h2>Start</h2><ol>
 <li>Open NVDA menu, Preferences, Settings, Audio Keeper.</li>
-<li>Select your speakers or Follow Windows default. Outputs are scanned in the background
+<li>Choose Follow NVDA output, Follow Windows default, one selected output,
+several checked outputs, or all active outputs (up to 16). Outputs are scanned in the background
 and the list updates automatically. Refresh output list requests another scan.</li>
 <li>Leave noise volume at 5 initially. Enable continuous audio, then Apply or OK.</li>
 <li>Use Refresh status: expect Playing, the selected device, channel count and increasing counters.</li>
@@ -33,9 +34,11 @@ change the shortcut or assign toggle/status shortcuts.</p>
 <ul>
 <li><strong>Enable continuous audio:</strong> start playback after Apply or OK and
 on subsequent NVDA starts. Off by default; no background service is installed.</li>
-<li><strong>Audio output:</strong> follow Windows' default multimedia output, or
-select one named output. A missing named output is retried without switching to
-another speaker. Windows default changes are checked approximately every two seconds.</li>
+<li><strong>Output mode:</strong> follow NVDA's configured output across profile
+changes, follow Windows' default multimedia output, select one named output,
+check several outputs, or keep all active outputs awake. At most 16 streams
+run at once. A missing selected output is retried independently of healthy
+outputs. Windows default changes are checked approximately every two seconds.</li>
 <li><strong>Noise volume:</strong> default 5, adjustable from 0 to 100. This adjusts
 only the add-on's stream, not speech or Windows master volume.</li>
 <li><strong>Keep the computer awake:</strong> request prevention of automatic idle
@@ -52,8 +55,8 @@ Errors are logged either way.</li>
 <p>Noise volume 0–100 uses a quiet range: 100 is limited to one percent peak digital
 full scale; 5 is 0.05 percent. Physical loudness depends on your speakers and volume.
 Zero sends silence, which may not keep a device awake. Independent noise is generated
-for every supported channel of the selected output by default, not every separate
-sound device. This includes center, rear, side and LFE channels when the selected
+for every supported channel of each selected output. This includes center, rear,
+side and LFE channels when an
 HDMI or sound-card output exposes them. Windows and the receiver must be configured
 for the surround layout; a stereo endpoint cannot produce separate center/rear
 channels. LFE filtering may make its static less audible. Channel names appear in

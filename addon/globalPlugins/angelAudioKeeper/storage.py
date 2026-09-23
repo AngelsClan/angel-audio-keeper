@@ -4,14 +4,32 @@ import os
 from pathlib import Path
 import tempfile
 
-DEFAULTS = dict(enabled=False, device="", volume=5, keepSystem=False,
-                keepDisplay=False, awakeOnBattery=False, debug=False)
+# Output modes. "device" keeps the 0.1.0 single-output behaviour; older settings
+# files without a mode are migrated below without rewriting them on disk.
+MODE_NVDA = "nvda"
+MODE_DEFAULT = "windowsDefault"
+MODE_DEVICE = "device"
+MODE_DEVICES = "devices"
+MODE_ALL = "all"
+MODES = (MODE_NVDA, MODE_DEFAULT, MODE_DEVICE, MODE_DEVICES, MODE_ALL)
+# Bounds the saved list, the settings UI and the number of concurrent streams.
+MAX_SELECTED_DEVICES = 16
+
+DEFAULTS = dict(enabled=False, mode=MODE_DEFAULT, device="", devices=[], volume=5,
+                keepSystem=False, keepDisplay=False, awakeOnBattery=False, debug=False)
+
+
+def _device_id(value):
+    if not isinstance(value, str) or len(value) > 2048:
+        raise ValueError("Invalid output device ID")
+    return value
 
 
 def validated(values):
     if not isinstance(values, dict):
         raise ValueError("Settings must be an object")
     result = dict(DEFAULTS)
+    result["devices"] = []
     for key in result:
         if key not in values:
             continue
@@ -20,11 +38,25 @@ def validated(values):
             if type(value) is not int or not 0 <= value <= 100:
                 raise ValueError("Volume must be an integer from 0 to 100")
         elif key == "device":
-            if not isinstance(value, str) or len(value) > 2048:
-                raise ValueError("Invalid output device ID")
+            _device_id(value)
+        elif key == "mode":
+            if value not in MODES:
+                raise ValueError(f"Unknown output mode: {value!r}")
+        elif key == "devices":
+            if not isinstance(value, list) or len(value) > MAX_SELECTED_DEVICES:
+                raise ValueError("Selected outputs must be a list of at most "
+                                 f"{MAX_SELECTED_DEVICES} device IDs")
+            unique = []
+            for entry in value:
+                if _device_id(entry) and entry not in unique:
+                    unique.append(entry)
+            value = unique
         elif type(value) is not bool:
             raise ValueError(f"Invalid boolean setting: {key}")
         result[key] = value
+    if "mode" not in values:
+        # Settings written by 0.1.0 knew only one output; keep that choice.
+        result["mode"] = MODE_DEVICE if result["device"] else MODE_DEFAULT
     return result
 
 

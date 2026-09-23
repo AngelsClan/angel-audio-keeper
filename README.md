@@ -14,6 +14,10 @@ not a verified fix for HP audio enhancements or a guarantee for every sound devi
 NVDA 2026.1 is the declared minimum, not a separately hardware-tested version.
 See `TEST-REPORT.md` for results and remaining hardware tests.
 
+The current source adds Follow NVDA, selected multiple outputs, and all-active
+outputs while keeping version 0.1.0. The existing GitHub release asset predates
+these source changes; use the freshly built local candidate to test them.
+
 ## About the add-on and its purpose
 
 Some speakers, headphones and audio drivers go idle between sounds. Waking them
@@ -43,8 +47,11 @@ details also contain a purpose summary; its Help opens the packaged manual.
 3. Open **NVDA menu > Preferences > Settings > Audio Keeper**. If the category
    does not appear, check NVDA's Installed Add-ons list for disabled/incompatible
    status and its log for an import error.
-4. Select your named speakers, headphones or HDMI output, or select
-   **Follow Windows default (multimedia)** to follow Windows' default output.
+4. Choose **Follow NVDA's configured output** to follow NVDA profile and output
+   changes, **Follow Windows default** for the Windows multimedia default,
+   **One selected output**, **Several selected outputs**, or **All active outputs**.
+   Check the desired devices in the several-outputs list. At most 16 active
+   streams run at once. A disconnected device is retried when it returns.
    The output list is populated asynchronously and updates automatically. Use
    **Refresh output list** to request another scan after plugging in a device.
 5. Leave noise volume at **5** to begin. Check **Enable continuous audio**, then
@@ -72,18 +79,22 @@ built-in speech keep-awake setting are not changed by this package.
 
 - **Enable continuous audio:** starts the stream now and on future NVDA starts.
   Stops with NVDA; does not run as a service, at shutdown, or in NVDA secure mode.
-- **Audio output:** one named render endpoint, or Windows default multimedia
-  output. A selected missing endpoint is retried; it does not unexpectedly switch
-  to another speaker. Default changes are checked approximately every two seconds.
+- **Output mode:** follow NVDA's configured output, the Windows default
+  multimedia output, one named device, several checked devices, or all currently
+  active outputs. NVDA profile/output changes are checked on the main thread;
+  Windows default changes are checked approximately every two seconds. The
+  output list refreshes about every five seconds while enabled. All-active
+  mode uses up to 16 devices, with a status note if there are more. A missing
+  selected endpoint is retried without stopping healthy selected outputs.
 - **Noise volume:** 0–100 in a deliberately quiet range. At 100 the generated
   peak is limited to 1% of digital full scale (−40 dBFS); 5 is 0.05% peak, about
   −66 dBFS. These are digital sample amplitudes, not a physical loudness guarantee.
   Amplifiers/headphones can still make low-level noise audible. Zero outputs
   silence, which drivers may optimize away; it is mainly useful for diagnostics.
-- **Channels:** automatically uses every channel exposed by that output's mix
+- **Channels:** automatically uses every channel exposed by each output's mix
   format. Stereo stays stereo. Supported surround layouts include their exposed
   channels, including LFE where present. It does not manufacture physical speakers,
-  use every separate device, or override Windows/NVDA speech routing.
+  override Windows/NVDA speech routing.
   Version 0.1.0 generates independent noise per channel by default, not a mono
   signal duplicated into each channel. Status/logs list the exposed speaker names.
   HDMI works the same way: select the HDMI output or let Windows default follow it.
