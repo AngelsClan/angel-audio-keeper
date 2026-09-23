@@ -14,7 +14,7 @@ from .noise import Noise
 from .storage import (MAX_SELECTED_DEVICES, MODE_ALL, MODE_DEFAULT, MODE_DEVICE,
                       MODE_DEVICES, MODE_NVDA, MODES)
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 
 # Sentinel target meaning "whatever Windows currently calls the default output".
 FOLLOW_DEFAULT = ""

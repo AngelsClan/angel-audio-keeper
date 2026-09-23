@@ -99,7 +99,7 @@ class IntegrationTests(unittest.TestCase):
         panel.onAbout(None)
         self.ui.browseableMessage.assert_called_once_with(
             self.plugin_module.ABOUT_TEXT, title="About Angel Audio Keeper")
-        self.assertIn("0.1.0", self.plugin_module.ABOUT_TEXT)
+        self.assertIn("0.2.0", self.plugin_module.ABOUT_TEXT)
         self.assertIn("NVDA+Shift+F12", self.plugin_module.ABOUT_TEXT)
         self.constructor.assert_not_called()
 

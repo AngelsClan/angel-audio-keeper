@@ -1,124 +1,17 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>Angel Audio Keeper help</title></head>
-<body><h1>Angel Audio Keeper — 0.1.0</h1>
-<p><a href="https://github.com/AngelsClan/angel-audio-keeper">Project source and releases</a>
-— <a href="https://github.com/AngelsClan/angel-audio-keeper/issues">Report a problem</a></p>
-<h2>About the add-on</h2>
-<p>Angel Audio Keeper, by Angels Clan, helps reduce clipped speech and audio wake
-delays on devices that sleep between sounds. It maintains a separate quiet audio
-stream even while NVDA is silent. Fresh installations start disabled. This is an
-initial release, not a guaranteed fix for HP drivers or enhancement resets.</p>
-<p>Copyright 2026 Angels Clan. Licensed under GNU GPL version 2 or later, without
-warranty. Redistribution and modification are permitted under that license.
-The complete license is included as LICENSE.txt in the add-on package.</p>
-<h2>Install or upgrade</h2>
-<p>Open AngelAudioKeeper-0.1.0.nvda-addon and accept NVDA's installation prompt.
-For an upgrade, accept replacing the existing copy; do not uninstall it first.
-Restart NVDA when prompted. A Windows reboot is not required. Settings and logs
-are preserved, including enabled state and volume. The package is intended for
-NVDA 2026.1–2026.2; installed playback has been checked on NVDA 2026.2 with
-Windows 11 and Realtek stereo. NVDA 2026.1 and physical HDMI surround require
-additional device testing. English is the initial interface language.</p>
-<h2>Start</h2><ol>
-<li>Open NVDA menu, Preferences, Settings, Audio Keeper.</li>
-<li>Choose Follow NVDA output, Follow Windows default, one selected output,
-several checked outputs, or all active outputs (up to 16). Outputs are scanned in the background
-and the list updates automatically. Refresh output list requests another scan.</li>
-<li>Leave noise volume at 5 initially. Enable continuous audio, then Apply or OK.</li>
-<li>Use Refresh status: expect Playing, the selected device, channel count and increasing counters.</li>
-</ol>
-<p>Press <strong>NVDA+Shift+F12</strong> to stop, or use Stop audio now. Stop is saved even
-if you later cancel the settings dialog. Input gestures under Audio Keeper lets you
-change the shortcut or assign toggle/status shortcuts.</p>
-<h2>Options</h2>
-<ul>
-<li><strong>Enable continuous audio:</strong> start playback after Apply or OK and
-on subsequent NVDA starts. Off by default; no background service is installed.</li>
-<li><strong>Output mode:</strong> follow NVDA's configured output across profile
-changes, follow Windows' default multimedia output, select one named output,
-check several outputs, or keep all active outputs awake. At most 16 streams
-run at once. A missing selected output is retried independently of healthy
-outputs. Windows default changes are checked approximately every two seconds.</li>
-<li><strong>Noise volume:</strong> default 5, adjustable from 0 to 100. This adjusts
-only the add-on's stream, not speech or Windows master volume.</li>
-<li><strong>Keep the computer awake:</strong> request prevention of automatic idle
-sleep while playback runs. Off by default.</li>
-<li><strong>Keep the display awake:</strong> separately request prevention of idle
-display shutdown while playback runs. Off by default.</li>
-<li><strong>Allow keep-awake requests on battery power:</strong> off by default.
-When off, audio still plays on battery, but the two power requests above are withheld.
-Enabling it can reduce battery life. No option prevents critical-battery shutdown.</li>
-<li><strong>Detailed diagnostic logging:</strong> off by default. Adds ten-second
-activity summaries and extra buffer diagnostics; normal summaries are every minute.
-Errors are logged either way.</li>
-</ul>
-<p>Noise volume 0–100 uses a quiet range: 100 is limited to one percent peak digital
-full scale; 5 is 0.05 percent. Physical loudness depends on your speakers and volume.
-Zero sends silence, which may not keep a device awake. Independent noise is generated
-for every supported channel of each selected output. This includes center, rear,
-side and LFE channels when an
-HDMI or sound-card output exposes them. Windows and the receiver must be configured
-for the surround layout; a stereo endpoint cannot produce separate center/rear
-channels. LFE filtering may make its static less audible. Channel names appear in
-status and logs. Playback continues
-while enabled and NVDA runs; a missing output is retried without silently choosing
-a different speaker.</p>
-<p>Computer and display keep-awake are separate optional settings, normally withheld
-on battery. No Windows power plan is changed. Some drivers treat any active audio
-stream as a reason not to enter idle sleep. Deliberate sleep/shutdown is not blocked.</p>
-<p>Apply/OK saves settings globally for this add-on only. NVDA application-profile
-switches cannot undo Stop. Volume, logging and power changes leave the audio stream
-open. Live volume changes use gain on this add-on's stream only, without rebuilding
-the noise. A device change must reopen it. It does not modify enhancements,
-NVDA speech volume or master volume.</p>
-<h2>Buttons and shortcuts</h2>
-<ul>
-<li><strong>Refresh output list:</strong> scan devices in the background.</li>
-<li><strong>Refresh status:</strong> update the read-only status and counters.
-Counters are cumulative for the current worker session.</li>
-<li><strong>Copy diagnostic summary:</strong> copy status and diagnostic paths to
-your clipboard; no recording is copied.</li>
-<li><strong>Open log folder:</strong> show local diagnostic files.</li>
-<li><strong>About the add-on:</strong> open readable version, purpose and privacy information.</li>
-<li><strong>Stop audio now:</strong> stop and save the disabled state immediately.
-NVDA+Shift+F12 does the same thing. Cancel does not undo this action.</li>
-<li><strong>Apply or OK:</strong> save and apply edits. Cancel discards unsaved
-edits, not settings already applied.</li>
-</ul>
-<h2>Logs</h2>
-<p>Copy diagnostic summary and Open log folder are in the same settings category.
-Logs are in angelAudioKeeperLogs under your NVDA configuration directory: at most
-four files of about 512 KiB each. They contain timestamps, device names/IDs, format,
-buffer activity, errors and retries. Detailed logging gives ten-second summaries;
-normal logging gives sixty-second summaries. No microphone, speech or audio recordings
-are made, and nothing is uploaded. Review device names and paths before sharing logs.</p>
-<p>Increasing counters prove output submission, not physical speaker behavior.
-Empty-refill counts do not necessarily mean an audible glitch.</p>
-<h2>Test and recovery</h2>
-<p>If no sound is audible, first check enabled state, the selected device and
-increasing counters. Quiet noise is intentional. Do not turn the volume up sharply.
-If status says Waiting to recover, reconnect the selected device or choose another.
-Retries use bounded backoff up to thirty seconds.</p>
-<p>If HDMI shows two channels, Windows is exposing stereo. Configure surround in
-Windows and on the receiver before expecting center/rear output. This add-on cannot
-create physical speakers. No physical HDMI surround receiver was available during
-initial qualification; the generated multichannel signals were software-tested.</p>
-<p>If settings cannot be saved, check permissions and disk space. Emergency stop
-still requests playback stop, but a failed save can let audio restart at the next
-NVDA launch. Corrupt settings start disabled without automatically overwriting
-your original settings file. Driver problems may still cause clipping or stutter.</p>
-<p>To upgrade from the first test build, open the new package and accept replacement,
-then restart NVDA when prompted. Do not uninstall first. Your settings and logs
-are preserved, including the enabled state and selected volume.</p>
-<p>Check that other audio and NVDA speech remain normal, then leave speech idle and
-compare the first words with playback disabled. Note the time if stuttering or
-enhancement changes return. Existing Bluetooth Audio Active or other keep-audio-awake
-add-ons are not disabled automatically; disable overlapping add-ons for a clean test
-if you wish. This package has not been proven to prevent HP enhancement resets.</p>
-<p>Disable or remove this add-on using NVDA's Installed Add-ons interface and restart
-NVDA if prompted. You can start NVDA with --disable-addons for recovery. Settings and
-small logs are retained. Nothing runs in secure mode or after NVDA exits.</p>
-<p>When reporting a problem, include Windows, NVDA and add-on versions, device type,
-channel layout, steps and approximate time. Share only reviewed diagnostics, not
-your entire NVDA log or configuration: unrelated sensitive information may be there.</p>
+<html lang="en"><head><meta charset="utf-8"><title>Angel Audio Keeper help</title></head><body>
+<h1>Angel Audio Keeper 0.2.0</h1>
+<p>Audio Keeper plays very quiet sound while NVDA runs. It may reduce delay or clipped speech caused by a sleeping sound device. Fresh installs start disabled. It does not repair sound drivers or Windows enhancements.</p>
+<h2>Start</h2>
+<ol><li>Open NVDA menu, Preferences, Settings, Audio Keeper.</li><li>Choose Follow NVDA's configured output, Follow Windows default, One selected output, Several selected outputs, or All active outputs (up to 16).</li><li>Leave Noise volume at 5 to begin. Check Enable continuous audio and choose Apply or OK. Use Refresh status to check playback.</li></ol>
+<p>Press <strong>NVDA+Shift+F12</strong> or choose <strong>Stop audio now</strong> to stop and save the disabled state. Cancel in the settings dialog does not undo an emergency stop. The shortcut can be changed in Input Gestures.</p>
+<h2>Choosing outputs</h2>
+<p>Follow NVDA tracks the output chosen by NVDA, including profile changes. Follow Windows default tracks the Windows multimedia output. One or Several selected outputs keep the named devices active. All active outputs uses every available output, up to 16. Each has an independent stream. A disconnected device is retried without stopping healthy outputs. All active outputs can use more power and play on speakers you are not using.</p>
+<p>Noise volume affects only Audio Keeper. Start low and increase gradually if needed. Zero sends silence, which may not keep hardware awake. Separate noise is generated for each exposed channel; a stereo device remains stereo.</p>
+<h2>Other options</h2>
+<p>Computer and display keep-awake requests are separate, off by default, and normally withheld on battery. Allow battery requests only if you accept the power use. Detailed logging adds activity records; ordinary errors are logged either way. Refresh output list rescans devices. Copy diagnostic summary copies technical status; Open log folder shows local logs.</p>
+<h2>Upgrade and troubleshooting</h2>
+<p>Open the 0.2.0 add-on file, accept replacement, and restart NVDA. Settings remain. If status says Waiting to recover, check the selected device. If a receiver exposes only stereo, configure its surround layout in Windows; the add-on cannot create missing channels. Playback stops when NVDA exits. To remove the add-on, disable it, remove it in NVDA's Add-on Store, and restart NVDA.</p>
+<p>Logs contain device names, identifiers and errors; review them before sharing. No microphone or speech is recorded and nothing is uploaded. Tested with NVDA 2026.2 on Windows 11 and Realtek stereo. NVDA 2026.1 is the declared minimum; other hardware needs testing. See the <a href="https://github.com/AngelsClan/angel-audio-keeper">project</a> for test details.</p>
+<p>Copyright 2026 Angels Clan. GPL version 2 or later; see LICENSE.txt. Provided without warranty.</p>
 </body></html>

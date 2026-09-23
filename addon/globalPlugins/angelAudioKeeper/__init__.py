@@ -54,7 +54,7 @@ ABOUT_TEXT = (
     "Stop audio with NVDA+Shift+F12 or Stop audio now. Playback stops when NVDA exits. "
     "No microphone capture, speech recording, networking or automatic uploads. "
     "Bounded local logs include device details; review them before sharing.\n\n"
-    "This initial release has been tested on Windows 11 with NVDA 2026.2 and Realtek stereo. "
+    "Playback has been tested on Windows 11 with NVDA 2026.2 and Realtek stereo. "
     "Surround layouts are software-tested; physical HDMI receiver testing remains limited. "
     "See the add-on help for installation, all settings, troubleshooting and removal."
 )

@@ -1,4 +1,26 @@
-# Angel Audio Keeper 0.1.0 qualification
+# Angel Audio Keeper test evidence
+
+## Version 0.2.0 — September 23, 2026
+
+This release adds five output modes: follow NVDA's configured output, follow
+Windows default, one selected output, several selected outputs, or all active
+outputs (up to 16). Streams are independent so a disconnected endpoint does
+not stop healthy selected outputs. Settings from 0.1.0 migrate without reset.
+The public README and packaged help were rewritten for these choices.
+
+- `python -m unittest discover -s tests -q`: 60 passed.
+- `python tools/ui_smoke.py`: one real wx settings-control test passed without
+  showing a window or replacing the running NVDA session.
+- `python build.py`: package integrity check passed; 28,879-byte add-on,
+  SHA-256 `f97f164c1411f713a30c653d08d5dbe018f7664ca72ab41130037f57de4887aa`.
+- Earlier development qualification exercised nine available native endpoints
+  in silent mode and an isolated NVDA profile. This documentation-only release
+  step did not repeat those hardware trials.
+
+These results verify software behavior on the tested host. They do not prove
+that every sound device avoids wake delays or enhancement resets.
+
+## Historical 0.1.0 qualification
 
 September 17, 2026. Follow-up work began 14:48:04 UTC.
 Qualification completed 15:03:53 UTC, about 16 minutes including packaging checks.
