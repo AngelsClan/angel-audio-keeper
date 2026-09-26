@@ -4,6 +4,9 @@
 
 Angel Audio Keeper is an NVDA add-on that sends very quiet sound to an output device while NVDA runs. On hardware that sleeps between sounds, it may reduce wake delay or clipped speech. It does not change NVDA's voice, repair drivers, change Windows enhancements, or record speech. Fresh installs start disabled.
 
+This page describes the **0.2.0 public release** linked above. Experimental
+application-audio ducking is not included in that download.
+
 ## Install and start
 
 1. Download the `.nvda-addon` from the release, open it, accept NVDA's installation prompt, and restart NVDA. Upgrading keeps your settings.
@@ -28,6 +31,13 @@ Each selected device has its own quiet stream. If headphones disconnect, a worki
 The add-on generates separate noise for every channel the device exposes, including surround channels when available. It cannot turn a stereo device into surround sound. Volume 0 sends silence and may not keep hardware awake. The volume controls only this add-on, not NVDA or Windows master volume.
 
 ## Other settings and limits
+
+If an output seems silent, open **Audio Keeper** settings and use **Refresh
+status**. Confirm **Enable continuous audio**, choose the intended output
+mode, and check that **Noise volume** is above zero. For headphones that come
+and go, **Follow NVDA's configured output** or **All active outputs** may be
+more useful than one fixed device. Press **Apply** and refresh status after
+changing settings before treating an old device status as a new failure.
 
 Optional computer and display keep-awake settings defer idle sleep while Audio Keeper runs. They start off and are withheld on battery unless explicitly allowed. Deliberate shutdown and critical battery protection are unaffected.
 
